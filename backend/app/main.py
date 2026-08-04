@@ -2,8 +2,11 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.core.database import check_connection
+from app.api.v1.events import router as events_router
 
 app = FastAPI(title=settings.app_name)
+
+app.include_router(events_router, prefix="/api/v1")
 
 
 @app.get("/")
