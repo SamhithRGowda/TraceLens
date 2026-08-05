@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: tracelens
+Version: 0.1.0
+Summary: Lightweight evidence-capture SDK for TraceLens
+Requires-Python: >=3.9
+Requires-Dist: requests>=2.31.0
