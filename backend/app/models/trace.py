@@ -9,6 +9,21 @@ from app.core.database import Base
 
 
 class Trace(Base):
+    """
+    One agent execution / session — e.g. one full LangGraph run, one
+    conversation. Evidence rows belong to a Trace, and a Trace belongs
+    to a Project.
+
+    `session_id` is the *external* identifier — whatever the SDK/agent
+    framework calls this run (a LangChain run id, a custom session
+    string, etc). It's how ingestion (Day 4) finds-or-creates the
+    right Trace for incoming evidence: "have I seen this session_id
+    for this project before?"
+
+    `started_at` / `ended_at` are nullable because we don't know them
+    up front — Day 4's ingestion logic sets started_at when the trace
+    is first created, and updates ended_at as more evidence arrives.
+    """
     __tablename__ = "traces"
     __table_args__ = (UniqueConstraint("project_id", "session_id", name="uq_trace_project_session"),)
 

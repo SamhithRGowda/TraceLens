@@ -9,6 +9,16 @@ from app.core.database import Base
 
 
 class Evidence(Base):
+    """
+    A single observed unit within a trace: one LLM call or one tool
+    call. This is the raw material everything else in the system
+    (correlation, investigation, root cause) is built from — and it's
+    what a root-cause explanation ultimately has to cite.
+
+    `evidence_type` tells us how to interpret `payload`:
+      - "llm_call": payload holds {prompt, response, model, ...}
+      - "tool_call": payload holds {tool_name, arguments, output, ...}
+    """
     __tablename__ = "evidence"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

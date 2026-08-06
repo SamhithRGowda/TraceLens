@@ -23,3 +23,4 @@ class Project(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     traces = relationship("Trace", back_populates="project")
+    incidents = relationship("Incident", back_populates="project")

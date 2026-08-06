@@ -3,10 +3,12 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.database import check_connection
 from app.api.v1.events import router as events_router
+from app.api.v1.incidents import router as incidents_router
 
 app = FastAPI(title=settings.app_name)
 
 app.include_router(events_router, prefix="/api/v1")
+app.include_router(incidents_router, prefix="/api/v1")
 
 
 @app.get("/")
