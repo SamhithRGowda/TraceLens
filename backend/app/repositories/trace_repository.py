@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.trace import Trace
@@ -36,3 +37,25 @@ def get_or_create_trace(db: Session, project_id: UUID, session_id: str, event_ti
     db.add(trace)
     db.flush()
     return trace
+
+
+def get_traces_by_ids(db: Session, trace_ids) -> list[Trace]:
+    return db.query(Trace).filter(Trace.id.in_(trace_ids)).all()
+
+
+def get_traces_in_time_window(db: Session, project_id: UUID, start: datetime, end: datetime) -> list[Trace]:
+    """
+    Traces in the same project whose time range overlaps [start, end].
+    Overlap condition: the trace started before our window ends, AND
+    the trace ended (or, if still "ended_at is null", started) after
+    our window begins. Standard interval-overlap check.
+    """
+    return (
+        db.query(Trace)
+        .filter(
+            Trace.project_id == project_id,
+            Trace.started_at <= end,
+            func.coalesce(Trace.ended_at, Trace.started_at) >= start,
+        )
+        .all()
+    )

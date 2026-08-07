@@ -18,3 +18,7 @@ def create_evidence(db: Session, trace_id: UUID, data: EvidenceCreate) -> Eviden
     db.add(evidence)
     db.flush()
     return evidence
+
+
+def get_evidence_by_trace_ids(db: Session, trace_ids) -> list[Evidence]:
+    return db.query(Evidence).filter(Evidence.trace_id.in_(trace_ids)).all()
