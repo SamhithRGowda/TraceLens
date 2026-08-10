@@ -10,14 +10,21 @@ from app.core.database import Base
 
 class Incident(Base):
     """
-    The investigation unit. Created manually today (Day 6); Day 7's
-    correlation engine will eventually help populate `evidence_links`
-    automatically, and Day 9/10's investigation pipeline will fill in
-    `category` and `taxonomy_version` from our failure taxonomy.
+    The investigation unit. Created manually (Day 6); Day 7's
+    correlation engine expands its linked evidence automatically.
+
+    NOTE (Day 10): `category` and `taxonomy_version` below were added
+    on Day 6 with the intent that the investigation pipeline would
+    fill them in. Now that Investigation exists as its own table and
+    is the real source of truth for category (see investigation.py),
+    these two columns are effectively unused — kept in the schema
+    rather than migrated away for no functional gain, but flagged
+    here so nobody mistakes them for live data. "Current category"
+    for an incident means: the category on its most recent
+    Investigation, not these fields.
 
     `status` defaults to "open" — the full open/investigating/resolved
-    workflow (Day 12) isn't built yet, but the field exists now so
-    nothing needs restructuring when it arrives.
+    workflow (Day 12) isn't built yet.
     """
     __tablename__ = "incidents"
 
@@ -29,7 +36,7 @@ class Incident(Base):
 
     status = Column(String, nullable=False, default="open")
 
-    # Filled in later by the investigation pipeline (Day 9/10), not today.
+    # Effectively deprecated as of Day 10 — see docstring above.
     category = Column(String, nullable=True)
     taxonomy_version = Column(Integer, nullable=True)
 
@@ -42,6 +49,7 @@ class Incident(Base):
 
     project = relationship("Project", back_populates="incidents")
     evidence_links = relationship("IncidentEvidence", back_populates="incident")
+    investigations = relationship("Investigation", back_populates="incident")
 
     @property
     def evidence(self):
