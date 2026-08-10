@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # Added now, used later (Day 8+) — declaring it early means the
     # Settings class doesn't need to change shape when we get there.
     openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
 
 
 # Instantiated once, imported everywhere. This is the one place
