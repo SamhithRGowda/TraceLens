@@ -30,6 +30,10 @@ def create_investigation(
     return investigation
 
 
+def get_investigation(db: Session, investigation_id: UUID) -> Optional[Investigation]:
+    return db.query(Investigation).filter(Investigation.id == investigation_id).first()
+
+
 def get_investigations_for_incident(db: Session, incident_id: UUID) -> list[Investigation]:
     """All investigations for an incident, newest first."""
     return (

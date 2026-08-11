@@ -1,11 +1,10 @@
 """
-Prompt construction for root-cause analysis.
+Prompt construction for the investigation pipeline.
 
-The taxonomy embedded here matches Day 1's versioned failure taxonomy.
-If the taxonomy definitions change, bump TAXONOMY_VERSION — this is
-what lets a stored Investigation be traced back to which version of
-the taxonomy produced it (same reasoning as Incident.taxonomy_version
-from Day 6).
+build_root_cause_prompt (Day 9): diagnosis — what happened and why.
+build_remediation_prompt (Day 11): prescription — what to do about it.
+Kept as separate functions/prompts deliberately — different reasoning
+tasks, iterated on independently.
 """
 
 TAXONOMY_VERSION = 1
@@ -41,12 +40,14 @@ TAXONOMY = [
     },
 ]
 
+_TAXONOMY_LOOKUP = {t["name"]: t["description"] for t in TAXONOMY}
+
 
 def _format_evidence(evidence: list[dict]) -> str:
     """
     Each item is rendered with its real database id so the model can
-    cite specific rows back to us — this is what makes "evidence-backed
-    root cause" a checkable claim instead of a vibe.
+    cite specific rows back to us — this is what makes "evidence-backed"
+    a checkable claim instead of a vibe.
     """
     lines = []
     for item in evidence:
@@ -60,7 +61,7 @@ def _format_evidence(evidence: list[dict]) -> str:
 
 
 def build_root_cause_prompt(evidence: list[dict]) -> tuple[str, str]:
-    """Returns (system_prompt, user_prompt) ready to hand to call_llm_json."""
+    """Returns (system_prompt, user_prompt) for root-cause diagnosis."""
     taxonomy_text = "\n".join(f"- {t['name']}: {t['description']}" for t in TAXONOMY)
 
     system_prompt = (
@@ -82,5 +83,42 @@ def build_root_cause_prompt(evidence: list[dict]) -> tuple[str, str]:
     )
 
     user_prompt = f"Evidence:\n{_format_evidence(evidence)}"
+
+    return system_prompt, user_prompt
+
+
+def build_remediation_prompt(category: str, explanation: str, evidence: list[dict]) -> tuple[str, str]:
+    """
+    Returns (system_prompt, user_prompt) for generating a remediation
+    recommendation from an EXISTING diagnosis (category + explanation)
+    plus the specific evidence that diagnosis cited.
+
+    Deliberately advisory-only: the system prompt explicitly forbids
+    code output or autonomous framing, per the MVP constraint that
+    TraceLens recommends fixes, it does not apply them.
+    """
+    category_description = _TAXONOMY_LOOKUP.get(category, "No description available.")
+
+    system_prompt = (
+        "You are an AI incident remediation advisor. You have been given "
+        "a root-cause diagnosis for an AI agent failure, along with the "
+        "evidence that supports it. Recommend a concrete, actionable fix.\n\n"
+        "IMPORTANT: You are an ADVISOR only. Do not write code, do not "
+        "propose applying any change automatically, and do not describe "
+        "yourself as taking action. Describe the fix in plain language, "
+        "as a recommendation for a human engineer to review and implement "
+        "themselves.\n\n"
+        "Respond ONLY with a JSON object with this exact shape:\n"
+        "{\n"
+        '  "recommended_fix": "<a concrete, actionable recommendation, in plain language>",\n'
+        '  "rationale": "<why this fix addresses the specific root cause identified below>"\n'
+        "}"
+    )
+
+    user_prompt = (
+        f"Diagnosed root cause category: {category} ({category_description})\n"
+        f"Diagnosis explanation: {explanation}\n\n"
+        f"Supporting evidence:\n{_format_evidence(evidence)}"
+    )
 
     return system_prompt, user_prompt

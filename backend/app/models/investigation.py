@@ -41,3 +41,4 @@ class Investigation(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     incident = relationship("Incident", back_populates="investigations")
+    remediations = relationship("Remediation", back_populates="investigation")
