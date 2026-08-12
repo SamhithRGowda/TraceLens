@@ -5,7 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.repositories import incident_repository, investigation_repository
-from app.schemas.incident import IncidentCreate, IncidentResponse, EvidenceLinkRequest, IncidentWithEvidenceResponse
+from app.schemas.incident import (
+    IncidentCreate,
+    IncidentResponse,
+    EvidenceLinkRequest,
+    IncidentWithEvidenceResponse,
+    StatusUpdateRequest,
+)
 from app.schemas.investigation import InvestigationResponse
 from app.services import incident_service, correlation_service, investigation_service
 
@@ -28,6 +34,23 @@ def get_incident(incident_id: UUID, db: Session = Depends(get_db)):
 @router.post("/{incident_id}/evidence", response_model=IncidentWithEvidenceResponse)
 def link_evidence(incident_id: UUID, data: EvidenceLinkRequest, db: Session = Depends(get_db)):
     incident = incident_service.link_evidence_to_incident(db, incident_id, data.evidence_ids)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return incident
+
+
+@router.patch("/{incident_id}/status", response_model=IncidentResponse)
+def update_incident_status(incident_id: UUID, data: StatusUpdateRequest, db: Session = Depends(get_db)):
+    """
+    Explicit, manual status change — open/investigating/resolved.
+    Rejects unknown values (handled by the enum) and no-op transitions
+    (setting to the status it's already at). No automatic resolution
+    detection; a human decides when something is actually resolved.
+    """
+    try:
+        incident = incident_service.set_incident_status(db, incident_id, data.status.value)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
     return incident

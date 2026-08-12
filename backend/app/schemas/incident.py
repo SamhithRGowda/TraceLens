@@ -20,6 +20,10 @@ class IncidentCreate(BaseModel):
     description: Optional[str] = None
 
 
+class StatusUpdateRequest(BaseModel):
+    status: IncidentStatus
+
+
 class IncidentResponse(BaseModel):
     id: UUID
     project_id: UUID
@@ -29,6 +33,7 @@ class IncidentResponse(BaseModel):
     category: Optional[str]
     created_at: datetime
     updated_at: datetime
+    resolved_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

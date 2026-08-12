@@ -23,8 +23,13 @@ class Incident(Base):
     for an incident means: the category on its most recent
     Investigation, not these fields.
 
-    `status` defaults to "open" — the full open/investigating/resolved
-    workflow (Day 12) isn't built yet.
+    `status` (open/investigating/resolved) has no enforced state
+    machine — Day 12 scope decision, kept deliberately simple.
+    Validation just rejects unknown values and no-op transitions
+    (setting to the status it's already at). `resolved_at` is set
+    when status becomes "resolved" and cleared if it moves away from
+    resolved again (e.g. reopened), so it always reflects the most
+    recent resolution, not a stale one.
     """
     __tablename__ = "incidents"
 
@@ -46,6 +51,7 @@ class Incident(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     project = relationship("Project", back_populates="incidents")
     evidence_links = relationship("IncidentEvidence", back_populates="incident")

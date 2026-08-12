@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -33,3 +34,22 @@ def link_evidence(db: Session, incident_id: UUID, evidence_ids: list[UUID], link
             continue
         db.add(IncidentEvidence(incident_id=incident_id, evidence_id=evidence_id, linked_by=linked_by))
     db.flush()
+
+
+def set_status(db: Session, incident: Incident, new_status: str) -> Incident:
+    """
+    Raw mutation, no validation — that's the service layer's job
+    (incident_service.set_incident_status does the checking, and
+    investigation_service's auto-transition calls this directly since
+    it's an internal side effect, not a user-submitted transition
+    that needs rejecting).
+
+    resolved_at is set when moving to "resolved", and cleared
+    otherwise — it always reflects the current/most-recent
+    resolution, never a stale one from an earlier resolve-reopen cycle.
+    """
+    incident.status = new_status
+    incident.resolved_at = datetime.now(timezone.utc) if new_status == "resolved" else None
+    db.add(incident)
+    db.flush()
+    return incident

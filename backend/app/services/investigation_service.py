@@ -28,6 +28,13 @@ def run_investigation(db: Session, incident_id: UUID) -> Optional[Investigation]
     if not evidence:
         raise ValueError("Cannot investigate an incident with no linked evidence.")
 
+    # Day 12: running an investigation is a real signal the incident is
+    # actively being worked, so we keep status honest with that — but
+    # only nudge it forward from "open", never override "resolved" or
+    # an already-"investigating" incident being re-investigated.
+    if incident.status == "open":
+        incident_repository.set_status(db, incident, "investigating")
+
     evidence_dicts = [
         {
             "id": str(e.id),
