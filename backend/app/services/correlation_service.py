@@ -7,7 +7,34 @@ from sqlalchemy.orm import Session
 from app.models.incident import Incident
 from app.repositories import incident_repository, trace_repository, evidence_repository
 
-DEFAULT_TIME_WINDOW_SECONDS = 60
+# --- Sprint 15: window tightened from 60s to 30s -------------------------
+# Original value (Day 7) was an unvalidated round-number placeholder — no
+# multi-agent latency data existed to derive it from (see Sprint 15
+# analysis). It was kept as a documented V1 limitation until Sprint 14's
+# live-agent run produced a concrete, reproducible false positive: an
+# unrelated trace ~40 seconds away from the target trace was pulled into
+# the same incident by the 60s window, despite having nothing to do with
+# it (verified incident d7324cad-f3d4-433a-b2f5-83167bdac2b6, contaminating
+# trace 71c3729a-7bc4-4a5d-ac5a-80032d6f9111).
+#
+# 30 seconds is chosen specifically to exclude that ~40s case, NOT because
+# it reflects any measured multi-agent handoff latency — no such data
+# exists yet. It remains a bounded MVP heuristic, not a considered
+# definition of "related traces."
+#
+# This is a probability reduction, not a structural fix: two unrelated
+# traces in the same project landing within 30s of each other will still
+# be merged. The only signal correlation uses is (project_id, time
+# proximity) — there is no session/request/parent identity concept in the
+# schema to distinguish "these two sessions are part of one logical flow"
+# from "these two sessions just happened to run close together." A
+# caller-asserted relationship field (e.g. a parent/request session id)
+# would be the real fix, but requires SDK + schema changes and was
+# explicitly deferred out of this sprint's scope — there's no real
+# multi-agent usage yet to design that mechanism against. Revisit this
+# constant, and that deferred mechanism, once real multi-agent trace data
+# exists.
+DEFAULT_TIME_WINDOW_SECONDS = 30
 
 
 def correlate_incident_evidence(
