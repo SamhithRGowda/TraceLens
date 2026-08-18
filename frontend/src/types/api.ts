@@ -49,3 +49,33 @@ export interface IncidentWithEvidenceResponse {
   resolved_at: string | null;
   evidence: EvidenceResponse[];
 }
+
+// --- Sprint 16 additions: write-action request/response shapes -----------
+
+// Request body for POST /incidents.
+export interface IncidentCreate {
+  project_name: string;
+  title: string;
+  description?: string | null;
+}
+
+// Request body for POST /incidents/{id}/evidence.
+export interface EvidenceLinkRequest {
+  evidence_ids: string[];
+}
+
+// What POST /incidents actually returns — the plain shape, with no
+// `evidence` array. Distinct from IncidentWithEvidenceResponse, which
+// only GET /incidents/{id} returns. Mixing these up would silently
+// break anything that expects `.evidence` on a freshly created incident.
+export interface IncidentResponse {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: IncidentStatus;
+  category: string | null;
+  created_at: string; // ISO 8601 date-time
+  updated_at: string; // ISO 8601 date-time
+  resolved_at: string | null;
+}

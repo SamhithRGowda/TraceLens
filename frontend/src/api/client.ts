@@ -39,3 +39,31 @@ export async function apiGet<T>(path: string): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+// POST helper for Sprint 16's write actions (create incident, link
+// evidence, correlate, investigate). `body` is optional because
+// correlate/investigate take no request body per the backend's OpenAPI
+// schema — Content-Type is only sent when there's actually a body.
+export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    // Same error-detail-extraction as apiGet, kept identical on purpose.
+    let detail = response.statusText;
+    try {
+      const responseBody = await response.json();
+      if (typeof responseBody?.detail === "string") {
+        detail = responseBody.detail;
+      }
+    } catch {
+      // Response body wasn't JSON — fall back to statusText above.
+    }
+    throw new ApiError(response.status, detail);
+  }
+
+  return response.json() as Promise<T>;
+}

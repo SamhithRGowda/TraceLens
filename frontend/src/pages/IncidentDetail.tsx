@@ -1,16 +1,25 @@
-// The one container/page component for Milestone 1. Owns state and
-// fetch orchestration; everything else (IncidentHeader, EvidenceList,
-// InvestigationPanel) stays presentational, per the plan. No routing —
-// the incident ID is just a text input, submitted manually. No writes —
-// only getIncident/getInvestigations from the existing API layer.
+// The container/page component. Owns state and fetch orchestration for
+// both the read side (incident/investigation display) and, as of
+// Sprint 16, the write side (create/link/correlate/investigate actions).
+// IncidentHeader, EvidenceList, InvestigationPanel, and ActionBar stay
+// presentational — they render what they're given and call the
+// callbacks they're passed, nothing more.
 
 import { useEffect, useState } from "react";
-import { getIncident, getInvestigations } from "../api/incidents";
+import {
+  getIncident,
+  getInvestigations,
+  createIncident,
+  linkEvidence,
+  correlateIncident,
+  investigateIncident,
+} from "../api/incidents";
 import { ApiError } from "../api/client";
 import type { IncidentWithEvidenceResponse, InvestigationResponse } from "../types/api";
 import IncidentHeader from "../components/IncidentHeader";
 import EvidenceList from "../components/EvidenceList";
 import InvestigationPanel from "../components/InvestigationPanel";
+import ActionBar, { type ActionState } from "../components/ActionBar";
 
 const DEFAULT_INCIDENT_ID = "cffefe5b-7b72-49f9-a995-9e929d4d2486";
 
@@ -27,9 +36,19 @@ type LoadState =
       investigations: InvestigationResponse[];
     };
 
+// Shared with all four action handlers below — same ApiError-vs-network
+// distinction loadIncident already used, factored out so it isn't
+// duplicated five times.
+function extractErrorMessage(err: unknown): string {
+  return err instanceof ApiError
+    ? `${err.message} (status ${err.status})`
+    : "Could not reach the backend. Is it running?";
+}
+
 export default function IncidentDetail() {
   const [incidentIdInput, setIncidentIdInput] = useState(DEFAULT_INCIDENT_ID);
   const [state, setState] = useState<LoadState>({ status: "idle" });
+  const [actionState, setActionState] = useState<ActionState>({ status: "idle" });
 
   async function loadIncident(id: string) {
     const trimmedId = id.trim();
@@ -50,11 +69,7 @@ export default function IncidentDetail() {
       ]);
       setState({ status: "success", incident, investigations });
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `${err.message} (status ${err.status})`
-          : "Could not reach the backend. Is it running?";
-      setState({ status: "error", message });
+      setState({ status: "error", message: extractErrorMessage(err) });
     }
   }
 
@@ -71,10 +86,69 @@ export default function IncidentDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- Sprint 16: write actions ------------------------------------------
+  // Each follows the same shape: set an in-flight actionState, call the
+  // corresponding api/incidents.ts function, then re-fetch via the
+  // existing loadIncident() rather than merging the mutation's own
+  // response into local state (per the Sprint 16 plan, section 6).
+
+  async function handleCreateIncident(data: {
+    projectName: string;
+    title: string;
+    description: string;
+  }) {
+    setActionState({ status: "creating" });
+    try {
+      const created = await createIncident({
+        project_name: data.projectName,
+        title: data.title,
+        description: data.description || null,
+      });
+      setIncidentIdInput(created.id);
+      await loadIncident(created.id);
+      setActionState({ status: "idle" });
+    } catch (err) {
+      setActionState({ status: "error", message: extractErrorMessage(err) });
+    }
+  }
+
+  async function handleLinkEvidence(evidenceIds: string[]) {
+    setActionState({ status: "linking" });
+    try {
+      await linkEvidence(incidentIdInput, evidenceIds);
+      await loadIncident(incidentIdInput);
+      setActionState({ status: "idle" });
+    } catch (err) {
+      setActionState({ status: "error", message: extractErrorMessage(err) });
+    }
+  }
+
+  async function handleCorrelate() {
+    setActionState({ status: "correlating" });
+    try {
+      await correlateIncident(incidentIdInput);
+      await loadIncident(incidentIdInput);
+      setActionState({ status: "idle" });
+    } catch (err) {
+      setActionState({ status: "error", message: extractErrorMessage(err) });
+    }
+  }
+
+  async function handleInvestigate() {
+    setActionState({ status: "investigating" });
+    try {
+      await investigateIncident(incidentIdInput);
+      await loadIncident(incidentIdInput);
+      setActionState({ status: "idle" });
+    } catch (err) {
+      setActionState({ status: "error", message: extractErrorMessage(err) });
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        <form onSubmit={handleSubmit} className="flex gap-2 mb-8">
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="text"
             value={incidentIdInput}
@@ -90,6 +164,15 @@ export default function IncidentDetail() {
             {state.status === "loading" ? "Loading…" : "Load Incident"}
           </button>
         </form>
+
+        <ActionBar
+          hasLoadedIncident={state.status === "success"}
+          onCreateIncident={handleCreateIncident}
+          onLinkEvidence={handleLinkEvidence}
+          onCorrelate={handleCorrelate}
+          onInvestigate={handleInvestigate}
+          actionState={actionState}
+        />
 
         {state.status === "idle" && (
           <p className="text-sm text-slate-500">Enter an incident ID above to load it.</p>
