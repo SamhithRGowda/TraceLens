@@ -3,13 +3,14 @@
 // workflow (create / link evidence / correlate / investigate). No
 // status-transition or remediation functions — out of Sprint 16 scope.
 
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPatch, apiPost } from "./client";
 import type {
   EvidenceLinkRequest,
   IncidentCreate,
   IncidentResponse,
   IncidentWithEvidenceResponse,
   InvestigationResponse,
+  StatusUpdateRequest,
 } from "../types/api";
 
 // GET /incidents/{id} -> IncidentWithEvidenceResponse (confirmed via
@@ -62,4 +63,18 @@ export function correlateIncident(incidentId: string): Promise<IncidentWithEvide
 // body.
 export function investigateIncident(incidentId: string): Promise<InvestigationResponse> {
   return apiPost<InvestigationResponse>(`/incidents/${incidentId}/investigate`);
+}
+
+// --- Sprint 18 addition: status update -----------------------------------
+
+// PATCH /incidents/{id}/status -> IncidentResponse. Backend rejects
+// unknown status values (enum-validated) and no-op transitions (setting
+// a status to what it already is) with a 400 — surfaced to the caller
+// as an ApiError via apiPatch, same as any other backend rejection.
+export function updateIncidentStatus(
+  incidentId: string,
+  status: StatusUpdateRequest["status"],
+): Promise<IncidentResponse> {
+  const body: StatusUpdateRequest = { status };
+  return apiPatch<IncidentResponse>(`/incidents/${incidentId}/status`, body);
 }

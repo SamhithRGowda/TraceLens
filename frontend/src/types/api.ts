@@ -96,3 +96,12 @@ export interface RemediationResponse {
   model: string;
   created_at: string; // ISO 8601 date-time
 }
+
+// --- Sprint 18 addition: status update -------------------------------
+// Request body for PATCH /incidents/{id}/status. Verified directly
+// against the real backend (StatusUpdateRequest Pydantic model +
+// OpenAPI spec) before this type was written — status is the only
+// field, and it's required.
+export interface StatusUpdateRequest {
+  status: IncidentStatus;
+}

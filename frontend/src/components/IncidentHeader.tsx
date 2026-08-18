@@ -1,11 +1,13 @@
-// Purely presentational — takes an incident, renders it. No fetching,
-// no mutation, no routing. Wired up with real data in IncidentDetail
-// (a later step); for now it just needs to render whatever it's given.
+// Presentational, with one addition as of Sprint 18: the three status
+// buttons. Still no fetching — onChangeStatus is a callback owned by
+// IncidentDetail, same pattern ActionBar/RemediationPanel's trigger use.
 
-import type { IncidentWithEvidenceResponse } from "../types/api";
+import type { IncidentStatus, IncidentWithEvidenceResponse } from "../types/api";
 
 interface IncidentHeaderProps {
   incident: IncidentWithEvidenceResponse;
+  onChangeStatus: (status: IncidentStatus) => void;
+  isChangingStatus: boolean;
 }
 
 // Status -> badge color. A plain lookup object, not a switch statement,
@@ -17,7 +19,15 @@ const STATUS_STYLES: Record<IncidentWithEvidenceResponse["status"], string> = {
   resolved: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
 };
 
-export default function IncidentHeader({ incident }: IncidentHeaderProps) {
+// Fixed, ordered set matching the backend's closed IncidentStatus enum —
+// same three buttons every time, not derived from anything dynamic.
+const STATUS_OPTIONS: IncidentStatus[] = ["open", "investigating", "resolved"];
+
+export default function IncidentHeader({
+  incident,
+  onChangeStatus,
+  isChangingStatus,
+}: IncidentHeaderProps) {
   return (
     <header className="border-b border-slate-800 pb-4 mb-6">
       <div className="flex items-start justify-between gap-4">
@@ -47,6 +57,26 @@ export default function IncidentHeader({ incident }: IncidentHeaderProps) {
           </dd>
         </div>
       </dl>
+
+      <div className="mt-3 flex gap-2">
+        {STATUS_OPTIONS.map((status) => {
+          // Disabling the current status's own button is what keeps a
+          // natural click from ever triggering the backend's no-op
+          // rejection (Day 12: same-status transitions are rejected).
+          const isCurrent = status === incident.status;
+          return (
+            <button
+              key={status}
+              type="button"
+              onClick={() => onChangeStatus(status)}
+              disabled={isCurrent || isChangingStatus}
+              className="rounded-md border border-slate-700 px-3 py-1 text-xs font-medium capitalize text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {status}
+            </button>
+          );
+        })}
+      </div>
     </header>
   );
 }

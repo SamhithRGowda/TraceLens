@@ -67,3 +67,32 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+// PATCH helper for Sprint 18's status update. Always has a body (the
+// backend's StatusUpdateRequest requires `status`), unlike apiPost's
+// optional body — so Content-Type is always sent here.
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    // Same error-detail-extraction as apiGet/apiPost, kept identical on
+    // purpose. This is also what surfaces the backend's no-op-transition
+    // rejection (e.g. "Incident is already 'open'.") cleanly to the UI.
+    let detail = response.statusText;
+    try {
+      const responseBody = await response.json();
+      if (typeof responseBody?.detail === "string") {
+        detail = responseBody.detail;
+      }
+    } catch {
+      // Response body wasn't JSON — fall back to statusText above.
+    }
+    throw new ApiError(response.status, detail);
+  }
+
+  return response.json() as Promise<T>;
+}

@@ -13,10 +13,12 @@ import {
   linkEvidence,
   correlateIncident,
   investigateIncident,
+  updateIncidentStatus,
 } from "../api/incidents";
 import { getRemediations, requestRemediation } from "../api/investigations";
 import { ApiError } from "../api/client";
 import type {
+  IncidentStatus,
   IncidentWithEvidenceResponse,
   InvestigationResponse,
   RemediationResponse,
@@ -69,6 +71,9 @@ export default function IncidentDetail() {
   const [state, setState] = useState<LoadState>({ status: "idle" });
   const [actionState, setActionState] = useState<ActionState>({ status: "idle" });
   const [remediationState, setRemediationState] = useState<RemediationLoadState>({ status: "idle" });
+  const [statusActionState, setStatusActionState] = useState<
+    { status: "idle" } | { status: "changing" } | { status: "error"; message: string }
+  >({ status: "idle" });
 
   async function loadIncident(id: string) {
     const trimmedId = id.trim();
@@ -207,6 +212,23 @@ export default function IncidentDetail() {
     }
   }
 
+  // --- Sprint 18: status update --------------------------------------------
+  // Same shape as every other action handler: set an in-flight state,
+  // call the API function, then re-fetch via loadIncident() so the badge
+  // and disabled button reflect the backend's actual, confirmed state —
+  // never optimistically assumed from the request that was sent.
+
+  async function handleChangeStatus(status: IncidentStatus) {
+    setStatusActionState({ status: "changing" });
+    try {
+      await updateIncidentStatus(incidentIdInput, status);
+      await loadIncident(incidentIdInput);
+      setStatusActionState({ status: "idle" });
+    } catch (err) {
+      setStatusActionState({ status: "error", message: extractErrorMessage(err) });
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
@@ -252,7 +274,18 @@ export default function IncidentDetail() {
 
         {state.status === "success" && (
           <div className="space-y-8">
-            <IncidentHeader incident={state.incident} />
+            <IncidentHeader
+              incident={state.incident}
+              onChangeStatus={handleChangeStatus}
+              isChangingStatus={statusActionState.status === "changing"}
+            />
+
+            {statusActionState.status === "error" && (
+              <div className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                {statusActionState.message}
+              </div>
+            )}
+
             <EvidenceList evidence={state.incident.evidence} />
             <InvestigationPanel
               investigations={state.investigations}
