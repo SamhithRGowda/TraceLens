@@ -79,3 +79,20 @@ export interface IncidentResponse {
   updated_at: string; // ISO 8601 date-time
   resolved_at: string | null;
 }
+
+// --- Sprint 17 addition: remediation ---------------------------------
+// What POST /investigations/{id}/remediate and
+// GET /investigations/{id}/remediations return. Verified directly from
+// the running backend's OpenAPI spec (not inferred) before this type
+// was written. Remediation is a Day-11 immutable snapshot, same pattern
+// as Investigation — re-running creates a new row, hence the list
+// endpoint and the same created_at-based "most recent" selection used
+// elsewhere in this project.
+export interface RemediationResponse {
+  id: string;
+  investigation_id: string;
+  recommended_fix: string;
+  rationale: string;
+  model: string;
+  created_at: string; // ISO 8601 date-time
+}

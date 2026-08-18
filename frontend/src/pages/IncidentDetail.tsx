@@ -14,11 +14,17 @@ import {
   correlateIncident,
   investigateIncident,
 } from "../api/incidents";
+import { getRemediations, requestRemediation } from "../api/investigations";
 import { ApiError } from "../api/client";
-import type { IncidentWithEvidenceResponse, InvestigationResponse } from "../types/api";
+import type {
+  IncidentWithEvidenceResponse,
+  InvestigationResponse,
+  RemediationResponse,
+} from "../types/api";
 import IncidentHeader from "../components/IncidentHeader";
 import EvidenceList from "../components/EvidenceList";
-import InvestigationPanel from "../components/InvestigationPanel";
+import InvestigationPanel, { pickMostRecentInvestigation } from "../components/InvestigationPanel";
+import RemediationPanel from "../components/RemediationPanel";
 import ActionBar, { type ActionState } from "../components/ActionBar";
 
 const DEFAULT_INCIDENT_ID = "cffefe5b-7b72-49f9-a995-9e929d4d2486";
@@ -45,10 +51,24 @@ function extractErrorMessage(err: unknown): string {
     : "Could not reach the backend. Is it running?";
 }
 
+// Sprint 17: remediation's own small state, separate from both LoadState
+// (read side) and ActionBar's ActionState (create/link/correlate/
+// investigate) — the "Get Remediation" trigger lives outside ActionBar,
+// scoped to the displayed investigation rather than the whole incident,
+// so it gets its own minimal state rather than being folded into either
+// existing union.
+type RemediationLoadState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "requesting" }
+  | { status: "error"; message: string }
+  | { status: "success"; remediations: RemediationResponse[] };
+
 export default function IncidentDetail() {
   const [incidentIdInput, setIncidentIdInput] = useState(DEFAULT_INCIDENT_ID);
   const [state, setState] = useState<LoadState>({ status: "idle" });
   const [actionState, setActionState] = useState<ActionState>({ status: "idle" });
+  const [remediationState, setRemediationState] = useState<RemediationLoadState>({ status: "idle" });
 
   async function loadIncident(id: string) {
     const trimmedId = id.trim();
@@ -85,6 +105,48 @@ export default function IncidentDetail() {
     loadIncident(DEFAULT_INCIDENT_ID);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // --- Sprint 17: remediation ---------------------------------------------
+
+  async function loadRemediations(investigationId: string) {
+    setRemediationState({ status: "loading" });
+    try {
+      const remediations = await getRemediations(investigationId);
+      setRemediationState({ status: "success", remediations });
+    } catch (err) {
+      setRemediationState({ status: "error", message: extractErrorMessage(err) });
+    }
+  }
+
+  // Whenever the incident finishes loading and there's a most-recent
+  // investigation to show, also load whatever remediations already exist
+  // for it — same mirroring relationship investigations already have to
+  // the incident load. If there's no investigation yet, remediation has
+  // nothing to target, so state stays idle.
+  useEffect(() => {
+    if (state.status !== "success") return;
+    const investigation = pickMostRecentInvestigation(state.investigations);
+    if (investigation) {
+      loadRemediations(investigation.id);
+    } else {
+      setRemediationState({ status: "idle" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  async function handleGetRemediation() {
+    if (state.status !== "success") return;
+    const investigation = pickMostRecentInvestigation(state.investigations);
+    if (!investigation) return;
+
+    setRemediationState({ status: "requesting" });
+    try {
+      await requestRemediation(investigation.id);
+      await loadRemediations(investigation.id);
+    } catch (err) {
+      setRemediationState({ status: "error", message: extractErrorMessage(err) });
+    }
+  }
 
   // --- Sprint 16: write actions ------------------------------------------
   // Each follows the same shape: set an in-flight actionState, call the
@@ -196,6 +258,31 @@ export default function IncidentDetail() {
               investigations={state.investigations}
               evidence={state.incident.evidence}
             />
+
+            {pickMostRecentInvestigation(state.investigations) && (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={handleGetRemediation}
+                  disabled={remediationState.status === "requesting"}
+                  className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {remediationState.status === "requesting" ? "Requesting…" : "Get Remediation"}
+                </button>
+
+                {remediationState.status === "error" && (
+                  <div className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {remediationState.message}
+                  </div>
+                )}
+
+                <RemediationPanel
+                  remediations={
+                    remediationState.status === "success" ? remediationState.remediations : []
+                  }
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

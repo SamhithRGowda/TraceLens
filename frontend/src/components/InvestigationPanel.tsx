@@ -21,7 +21,12 @@ const TYPE_LABELS: Record<EvidenceResponse["evidence_type"], string> = {
   tool_call: "Tool Call",
 };
 
-function mostRecent(investigations: InvestigationResponse[]): InvestigationResponse | null {
+// Exported so IncidentDetail (Sprint 17) can determine which investigation
+// the "Get Remediation" action should target — same selection rule used
+// here to decide what to display, reused rather than duplicated.
+export function pickMostRecentInvestigation(
+  investigations: InvestigationResponse[],
+): InvestigationResponse | null {
   if (investigations.length === 0) return null;
   return [...investigations].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
@@ -29,7 +34,7 @@ function mostRecent(investigations: InvestigationResponse[]): InvestigationRespo
 }
 
 export default function InvestigationPanel({ investigations, evidence }: InvestigationPanelProps) {
-  const investigation = mostRecent(investigations);
+  const investigation = pickMostRecentInvestigation(investigations);
 
   if (!investigation) {
     return (
