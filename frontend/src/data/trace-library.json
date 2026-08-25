@@ -1,0 +1,297 @@
+[
+  {
+    "id": "order-status-contradiction",
+    "title": "Order Status Contradiction",
+    "domain": "E-commerce order support",
+    "user_request": "Where's my order #ORD-1234?",
+    "incident_title": "Order status contradiction",
+    "incident_description": "Agent claimed DELIVERED after tool reported SHIPPED.",
+    "project_name": "trace-library-order-status-contradiction",
+    "session_id": "trace-library-order-status-contradiction",
+    "events": [
+      {
+        "evidence_id": "4f8cdeff-6ac4-4845-a243-48a955215bb4",
+        "type": "llm_call",
+        "preview": "Plan: check order status"
+      },
+      {
+        "evidence_id": "8298cdea-6243-4eae-bde2-e6f8047ff088",
+        "type": "tool_call",
+        "preview": "get_order_status -> SHIPPED"
+      },
+      {
+        "evidence_id": "532f3afe-0519-44d7-9d44-02ba5d6b1b63",
+        "type": "llm_call",
+        "preview": "Final response claims DELIVERED"
+      }
+    ]
+  },
+  {
+    "id": "account-context-mixup",
+    "title": "Customer/Account Context Mix-Up",
+    "domain": "Billing/account support",
+    "user_request": "Can you confirm my current plan and next billing date?",
+    "incident_title": "Account details mismatch",
+    "incident_description": "Final response doesn't match the account record actually retrieved.",
+    "project_name": "trace-library-account-context-mixup",
+    "session_id": "trace-library-account-context-mixup",
+    "events": [
+      {
+        "evidence_id": "1f321661-5709-4648-9099-d8a997ae22e2",
+        "type": "llm_call",
+        "preview": "Plan: look up account"
+      },
+      {
+        "evidence_id": "7d26b83b-8427-448d-8e7d-f31565ca956a",
+        "type": "tool_call",
+        "preview": "get_account_details -> Starter plan, billed 2026-09-02"
+      },
+      {
+        "evidence_id": "620c936b-34fd-4e3e-a5a4-0d85b6df4729",
+        "type": "llm_call",
+        "preview": "Final response states Pro plan / 2026-09-15 (doesn't match record)"
+      }
+    ]
+  },
+  {
+    "id": "wrong-tool-refund",
+    "title": "Wrong Tool Selected for Refund Request",
+    "domain": "E-commerce refunds",
+    "user_request": "I'd like to check if I'm eligible for a refund on this order.",
+    "incident_title": "Refund issued instead of eligibility check",
+    "incident_description": "Agent called issue_refund instead of check_refund_eligibility.",
+    "project_name": "trace-library-wrong-tool-refund",
+    "session_id": "trace-library-wrong-tool-refund",
+    "events": [
+      {
+        "evidence_id": "1ceac3f7-b67d-4de2-aad5-4172b86b3793",
+        "type": "llm_call",
+        "preview": "Plan: handle refund question"
+      },
+      {
+        "evidence_id": "953a7fcc-781a-4c4b-807e-0a4e611846b1",
+        "type": "tool_call",
+        "preview": "issue_refund called (wrong tool) -> refund actually issued"
+      },
+      {
+        "evidence_id": "a4d33429-402c-4985-a837-67632f088f72",
+        "type": "llm_call",
+        "preview": "Final response confirms a refund the customer only asked to check on"
+      }
+    ]
+  },
+  {
+    "id": "kb-prompt-injection",
+    "title": "Malicious Instruction Hidden in Retrieved Content",
+    "domain": "Internal knowledge-base support bot",
+    "user_request": "How do I reset my API key?",
+    "incident_title": "Prompt injection via knowledge base article",
+    "incident_description": "Agent followed an embedded instruction inside a retrieved KB article.",
+    "project_name": "trace-library-kb-prompt-injection",
+    "session_id": "trace-library-kb-prompt-injection",
+    "events": [
+      {
+        "evidence_id": "19f9e2f8-f1f7-453f-8890-95cdce734c70",
+        "type": "llm_call",
+        "preview": "Plan: search knowledge base"
+      },
+      {
+        "evidence_id": "ea3c4be5-f37f-4dea-b418-5787904bd11d",
+        "type": "tool_call",
+        "preview": "KB article contains an embedded instruction-like directive"
+      },
+      {
+        "evidence_id": "84f6e5cf-a497-4fb2-8091-12e10fce156d",
+        "type": "llm_call",
+        "preview": "Final response leaks internal escalation info"
+      }
+    ]
+  },
+  {
+    "id": "payment-retry-loop",
+    "title": "Repeated Failed Payment Retries",
+    "domain": "Payments/billing",
+    "user_request": "Please charge my card for this month's subscription.",
+    "incident_title": "Payment retry loop reported as success",
+    "incident_description": "Three identical failed charge attempts, then a false success claim.",
+    "project_name": "trace-library-payment-retry-loop",
+    "session_id": "trace-library-payment-retry-loop",
+    "events": [
+      {
+        "evidence_id": "80bf5347-c6bf-4b28-a110-807730e93095",
+        "type": "llm_call",
+        "preview": "Plan: charge card"
+      },
+      {
+        "evidence_id": "e8d748f1-0681-40bf-9c55-4be9a6660044",
+        "type": "tool_call",
+        "preview": "charge_card attempt 1 -> gateway_timeout"
+      },
+      {
+        "evidence_id": "e4f117af-68e1-45ae-90d4-e8bc1b3a5394",
+        "type": "tool_call",
+        "preview": "charge_card attempt 2 (identical args) -> gateway_timeout"
+      },
+      {
+        "evidence_id": "eefc642d-1997-4b82-8325-2904f08af408",
+        "type": "tool_call",
+        "preview": "charge_card attempt 3 (identical args) -> gateway_timeout"
+      },
+      {
+        "evidence_id": "88855030-9c77-44bb-9345-b40d740ae92e",
+        "type": "llm_call",
+        "preview": "Final response falsely claims success"
+      }
+    ]
+  },
+  {
+    "id": "missing-claim-context",
+    "title": "Missing Customer Information for Insurance Claim",
+    "domain": "Insurance claims support",
+    "user_request": "What's the status of my claim?",
+    "incident_title": "Claim status fabricated after failed lookup",
+    "incident_description": "Tool lookup failed, but the agent stated a specific claim status anyway.",
+    "project_name": "trace-library-missing-claim-context",
+    "session_id": "trace-library-missing-claim-context",
+    "events": [
+      {
+        "evidence_id": "2c789701-e38c-43ec-b798-e6d5fccde12b",
+        "type": "llm_call",
+        "preview": "Plan: look up claim"
+      },
+      {
+        "evidence_id": "9a6436bc-d80a-4523-aaec-3a357b33b45a",
+        "type": "tool_call",
+        "preview": "get_claim_status -> policy_not_found"
+      },
+      {
+        "evidence_id": "9bbaa824-d9e4-422d-9cf5-07c89624f1ea",
+        "type": "llm_call",
+        "preview": "Final response invents a specific status despite failed lookup"
+      }
+    ]
+  },
+  {
+    "id": "context-overflow-truncation",
+    "title": "Long Conversation / Context Truncation",
+    "domain": "Technical support",
+    "user_request": "My integration keeps failing intermittently \u2014 can you help me debug it?",
+    "incident_title": "Response ignores truncated context",
+    "incident_description": "Context was explicitly truncated, but the agent answered as if it wasn't.",
+    "project_name": "trace-library-context-overflow-truncation",
+    "session_id": "trace-library-context-overflow-truncation",
+    "events": [
+      {
+        "evidence_id": "5d319903-b4d8-4475-ad5f-3a16df7aa284",
+        "type": "llm_call",
+        "preview": "Turn 1: begin troubleshooting"
+      },
+      {
+        "evidence_id": "b6421fc8-7b28-49f6-a892-24c016756cf3",
+        "type": "tool_call",
+        "preview": "get_request_logs -> mixed 200/429 responses"
+      },
+      {
+        "evidence_id": "056f818f-7b15-41cf-a074-90570120588e",
+        "type": "llm_call",
+        "preview": "Turn 2: rate-limit explanation established"
+      },
+      {
+        "evidence_id": "e10116f7-e270-4860-bb00-39238bb9ac16",
+        "type": "tool_call",
+        "preview": "Explicit context_length_exceeded error (1200 tokens truncated)"
+      },
+      {
+        "evidence_id": "db90fbb8-1740-4691-b5c7-14c3e60d1883",
+        "type": "llm_call",
+        "preview": "Final response contradicts earlier-established rate-limit finding"
+      }
+    ]
+  },
+  {
+    "id": "stale-pricing-doc",
+    "title": "Stale Pricing Document Misapplied",
+    "domain": "Sales/support",
+    "user_request": "What's the current price of the Pro plan?",
+    "incident_title": "Stale pricing document used instead of current one",
+    "incident_description": "Both old and updated pricing docs were retrieved; the old one was quoted.",
+    "project_name": "trace-library-stale-pricing-doc",
+    "session_id": "trace-library-stale-pricing-doc",
+    "events": [
+      {
+        "evidence_id": "b06686d0-1932-4c62-9a0a-4796b8c72486",
+        "type": "llm_call",
+        "preview": "Plan: search pricing docs"
+      },
+      {
+        "evidence_id": "0928bc5e-6a3b-41d1-a996-014112ffa923",
+        "type": "tool_call",
+        "preview": "Two docs retrieved: 2023 ($49) and 2024-supersedes ($59)"
+      },
+      {
+        "evidence_id": "7b6e06c1-0aac-426f-8104-43f5461fef44",
+        "type": "llm_call",
+        "preview": "Final response quotes the superseded 2023 price"
+      }
+    ]
+  },
+  {
+    "id": "unauthorized-financial-advice",
+    "title": "Unauthorized Personalized Financial Advice",
+    "domain": "Wealth management",
+    "user_request": "Given how the market's been lately, what should I do with my retirement savings?",
+    "incident_title": "Agent issued unauthorized personalized investment directive",
+    "incident_description": "Response used accurate data but exceeded the agent's informational-only scope.",
+    "project_name": "trace-library-unauthorized-financial-advice",
+    "session_id": "trace-library-unauthorized-financial-advice",
+    "events": [
+      {
+        "evidence_id": "b7ebf61b-e3bb-4f6d-b8c7-2e2ec8071629",
+        "type": "llm_call",
+        "preview": "Plan: check market + portfolio"
+      },
+      {
+        "evidence_id": "7dc72bb3-ffcc-4627-8e0e-584b946ddaae",
+        "type": "tool_call",
+        "preview": "get_market_summary -> accurate market data"
+      },
+      {
+        "evidence_id": "891a90ca-588f-479f-ae44-747a57d9017b",
+        "type": "tool_call",
+        "preview": "get_portfolio_summary -> accurate 70/30 bonds/equities"
+      },
+      {
+        "evidence_id": "71d60d3d-9b2c-4075-abfd-189499f7346b",
+        "type": "llm_call",
+        "preview": "Final response gives a specific personalized investment directive"
+      }
+    ]
+  },
+  {
+    "id": "healthy-password-reset",
+    "title": "Healthy Password Reset",
+    "domain": "Account support",
+    "user_request": "I forgot my password, can you help me reset it?",
+    "incident_title": "Password reset \u2014 control case",
+    "incident_description": "Healthy execution. Every claim in the response is directly supported by the tool output.",
+    "project_name": "trace-library-healthy-password-reset",
+    "session_id": "trace-library-healthy-password-reset",
+    "events": [
+      {
+        "evidence_id": "6b1500ee-0e8b-49ce-9b47-dfc7f7d603c5",
+        "type": "llm_call",
+        "preview": "Plan: send password reset"
+      },
+      {
+        "evidence_id": "c5f203b8-8a7f-4a0d-a9e5-e6af56ebc34b",
+        "type": "tool_call",
+        "preview": "send_password_reset -> sent, expires in 30 minutes"
+      },
+      {
+        "evidence_id": "40cb4813-738f-4a98-9d6b-4872b9184d98",
+        "type": "llm_call",
+        "preview": "Final response accurately reflects the tool output"
+      }
+    ]
+  }
+]

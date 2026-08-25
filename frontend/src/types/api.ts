@@ -52,11 +52,16 @@ export interface IncidentWithEvidenceResponse {
 
 // --- Sprint 16 additions: write-action request/response shapes -----------
 
-// Request body for POST /incidents.
+// Request body for POST /incidents. `evidence_ids` is optional: when
+// supplied, the backend links that evidence and correlates outward from
+// it inside the same transaction, so a selected Trace Library scenario
+// becomes a fully assembled incident in one call. Omitted for the manual
+// path, which links and correlates via their own endpoints.
 export interface IncidentCreate {
   project_name: string;
   title: string;
   description?: string | null;
+  evidence_ids?: string[];
 }
 
 // Request body for POST /incidents/{id}/evidence.

@@ -69,7 +69,7 @@ incident → Link seed evidence → Correlate → Investigate → View in fronte
 
 Correlation does not discover evidence on its own — it expands outward
 from evidence *already linked* to the incident (same-trace expansion,
-then the ±60s cross-trace window). An incident created with no linked
+then the ±30s cross-trace window). An incident created with no linked
 evidence and immediately correlated returns an empty evidence list —
 confirmed by running that exact sequence. At least one seed evidence item
 must be linked first.
@@ -148,7 +148,7 @@ Use the three evidence IDs from step 4.
 curl -s -X POST http://localhost:8000/api/v1/incidents/<incident_id>/correlate
 ```
 Now that seed evidence is linked, this expands from it (same-trace, then
-the ±60s cross-trace window) rather than returning an empty list.
+the ±30s cross-trace window) rather than returning an empty list.
 
 ### 8. Investigate
 
@@ -164,3 +164,75 @@ ground-truth test, now proven end-to-end from a real agent run.
 Paste the incident `id` into the TraceLens frontend's incident ID input
 (`http://localhost:5173`) to see the header, evidence, and investigation
 render for real, freshly-ingested data.
+
+---
+
+# Trace Library — Curated Scenario Seeding
+
+**Final-polish addition.** Where the sections above walk through *one*
+scenario manually end-to-end (useful for understanding the mechanics),
+`seed_trace_library.py` ingests **10** curated, realistic scenarios in
+one run and generates the manifest the frontend's Trace Library UI reads
+— eliminating the manual evidence-ID copy/paste from the workflow above
+for anyone using the library.
+
+**What it is:** 9 failure scenarios (one per real taxonomy category —
+`hallucination`, `tool_misuse` ×2, `prompt_injection`, `infinite_loop`,
+`missing_context`, `context_overflow`, `other`) plus 1 genuinely healthy
+control case, each a realistic multi-step agent execution, all ingested
+through the same unmodified SDK path as `order_status_agent.py`.
+
+**What it is not:** this is a curated demo/evaluation catalog for
+exploring the investigation workflow — not automatic production incident
+detection, not live customer telemetry, and not a claim that TraceLens
+currently monitors real traffic. That remains explicit future scope for
+a more mature version of the product.
+
+## Run it
+
+```bash
+.venv/bin/python demo/seed_trace_library.py
+```
+Same prerequisites as above (backend + Postgres running). Ingests all 10
+scenarios and writes two files:
+
+- `frontend/src/data/trace-library.json` — the public manifest the
+  Trace Library UI reads (titles, domains, event previews, real evidence
+  IDs). Commit this file so the Trace Library has content.
+- `demo/trace_library_eval.json` — a **private, eval-only** file listing
+  each scenario's intended taxonomy category, for your own reference
+  when checking investigation results. Nothing in the frontend reads
+  this file — the expected outcome is deliberately never exposed to the
+  UI or to the investigation pipeline before a real investigation runs.
+
+## Using the Trace Library in the UI
+
+Once seeded, open the frontend (`http://localhost:5173`) — the Trace
+Library section lists all 10 scenarios. Selecting one pre-fills the
+Create Incident form and attaches its known evidence, which Create
+Incident then links and correlates in the same request — no manual
+evidence-ID entry, and no separate Link Evidence or Correlate click.
+Selecting a trace fully determines its evidence set, so those two steps
+carry no user decision on this path.
+
+The Trace Library workflow is therefore:
+
+    Select trace → Create Incident → Investigate → Get Remediation → Resolve
+
+Link Evidence and Correlate remain available as separate manual actions
+for incidents assembled by hand from arbitrary evidence — that's the
+path the curl walkthrough earlier in this file documents, and it is
+unchanged.
+
+## Important: re-run after any database reset
+
+The evidence UUIDs written into `trace-library.json` are only valid for
+the Postgres volume they were created against. If you ever run
+`docker compose down -v` (or otherwise reset the database), the Trace
+Library's evidence IDs go stale — re-run `seed_trace_library.py` to
+regenerate both manifests before using the Trace Library again.
+
+Creating an incident with stale evidence IDs returns a `400` naming the
+missing IDs and pointing back at this script, rather than a foreign-key
+error — and the incident is not created at all, so there's nothing to
+clean up before re-seeding.

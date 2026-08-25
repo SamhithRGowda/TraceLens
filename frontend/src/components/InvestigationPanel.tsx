@@ -8,12 +8,22 @@
 // else is pure rendering. That selection lives here, not in the API
 // layer, per the api/incidents.ts comment: the API layer returns what
 // the backend gives; components decide how to use it.
+//
+// UI-polish pass: hierarchy only. The diagnosis now reads
+// category -> confidence -> explanation -> citations, top to bottom, with
+// the category as the headline rather than one pill among equals. Cited
+// evidence gains the same manifest previews EvidenceList uses. Every
+// citation still renders, including the unmatched-id fallback below —
+// nothing is filtered, reordered away, or summarised.
 
 import type { EvidenceResponse, InvestigationResponse } from "../types/api";
+import { badgeNeutral, card, cardMuted, idText } from "./ui";
 
 interface InvestigationPanelProps {
   investigations: InvestigationResponse[];
   evidence: EvidenceResponse[];
+  // evidence id -> human-readable preview. Missing keys are expected.
+  previews: Record<string, string>;
 }
 
 const TYPE_LABELS: Record<EvidenceResponse["evidence_type"], string> = {
@@ -33,17 +43,21 @@ export function pickMostRecentInvestigation(
   )[0];
 }
 
-export default function InvestigationPanel({ investigations, evidence }: InvestigationPanelProps) {
+export default function InvestigationPanel({
+  investigations,
+  evidence,
+  previews,
+}: InvestigationPanelProps) {
   const investigation = pickMostRecentInvestigation(investigations);
 
   if (!investigation) {
     return (
-      <section>
-        <h2 className="text-sm font-medium text-slate-300 mb-2">Investigation</h2>
+      <div className={`${cardMuted} px-4 py-3`}>
         <p className="text-sm text-slate-500">
-          No investigation yet. Run one from this incident to see a root-cause conclusion here.
+          No diagnosis yet. Run an investigation to classify this incident against the taxonomy and
+          get a cited root-cause explanation.
         </p>
-      </section>
+      </div>
     );
   }
 
@@ -60,64 +74,93 @@ export default function InvestigationPanel({ investigations, evidence }: Investi
   }));
 
   const confidencePct = Math.round(investigation.confidence * 100);
+  const earlierCount = investigations.length - 1;
 
   return (
-    <section>
-      <h2 className="text-sm font-medium text-slate-300 mb-2">Investigation</h2>
-
-      <div className="border border-slate-800 rounded-lg bg-slate-900/40 p-4 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <span className="inline-block rounded-full border border-violet-500/30 bg-violet-500/15 px-3 py-1 text-xs font-medium capitalize text-violet-300">
-              {investigation.category}
-            </span>
+    <div className={`${card} divide-y divide-slate-800`}>
+      {/* Headline: what this incident is, and how sure the model is. */}
+      <div className="flex items-start justify-between gap-6 p-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Category
+          </p>
+          <p className="mt-1 text-lg font-semibold capitalize leading-tight text-violet-300">
+            {investigation.category.replace(/_/g, " ")}
+          </p>
+        </div>
+        <div className="w-32 shrink-0">
+          <div className="flex items-baseline justify-end gap-1">
+            <span className="text-lg font-semibold text-slate-100">{confidencePct}%</span>
+            <span className="text-[11px] text-slate-500">confidence</span>
           </div>
-          <div className="text-right shrink-0">
-            <div className="text-lg font-semibold text-slate-100">{confidencePct}%</div>
-            <div className="text-xs text-slate-500">confidence</div>
+          {/* A bar makes "83%" comparable at a glance across runs, which a
+              bare number doesn't. Width is data, not decoration. */}
+          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full rounded-full bg-violet-400/70" style={{ width: `${confidencePct}%` }} />
           </div>
         </div>
+      </div>
 
-        <p className="text-sm text-slate-300 leading-relaxed">{investigation.explanation}</p>
+      <div className="p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Diagnosis</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{investigation.explanation}</p>
+      </div>
 
-        <div>
-          <h3 className="text-xs font-medium text-slate-400 mb-1.5">
-            Cited Evidence ({citedItems.length})
-          </h3>
-          <ul className="space-y-1.5">
-            {citedItems.map(({ id, match }) => (
+      <div className="p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          Cited Evidence <span className="text-slate-600">({citedItems.length})</span>
+        </p>
+        <ul className="mt-2 space-y-1.5">
+          {citedItems.map(({ id, match }) => {
+            const preview = previews[id];
+            return (
               <li
                 key={id}
-                className="flex items-center justify-between gap-4 rounded border border-slate-800 px-3 py-1.5"
+                className="flex items-start gap-3 rounded border border-slate-800 px-3 py-2"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  {match ? (
-                    <span className="shrink-0 rounded border border-slate-700 px-2 py-0.5 text-[11px] font-medium text-slate-300">
-                      {TYPE_LABELS[match.evidence_type]}
-                    </span>
+                {match ? (
+                  <span className={`${badgeNeutral} mt-0.5`}>{TYPE_LABELS[match.evidence_type]}</span>
+                ) : (
+                  <span className="mt-0.5 shrink-0 rounded border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-400">
+                    not found
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  {preview ? (
+                    <>
+                      <p className="text-xs leading-relaxed text-slate-300">{preview}</p>
+                      <p className={`mt-0.5 truncate ${idText}`}>{id}</p>
+                    </>
                   ) : (
-                    <span className="shrink-0 rounded border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-400">
-                      not found
-                    </span>
+                    <p className={`truncate ${idText} text-xs`}>{id}</p>
                   )}
-                  <span className="truncate text-xs text-slate-500 font-mono">{id}</span>
                 </div>
                 {match && (
-                  <span className="shrink-0 text-xs text-slate-500">
-                    {new Date(match.timestamp).toLocaleString()}
+                  <span className="shrink-0 pt-0.5 text-xs text-slate-500">
+                    {new Date(match.timestamp).toLocaleTimeString()}
                   </span>
                 )}
               </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="flex gap-4 text-xs text-slate-500 pt-1 border-t border-slate-800">
-          <span>Model: <span className="text-slate-400">{investigation.model}</span></span>
-          <span>Taxonomy v{investigation.taxonomy_version}</span>
-          <span>{new Date(investigation.created_at).toLocaleString()}</span>
-        </div>
+            );
+          })}
+        </ul>
       </div>
-    </section>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 text-[11px] text-slate-500">
+        <span>
+          Model <span className="text-slate-400">{investigation.model}</span>
+        </span>
+        <span>Taxonomy v{investigation.taxonomy_version}</span>
+        <span>{new Date(investigation.created_at).toLocaleString()}</span>
+        {/* Re-running Investigate used to silently replace what was on
+            screen even though every prior snapshot is still held in state.
+            At least say how many there are. */}
+        {earlierCount > 0 && (
+          <span className="text-slate-600">
+            {earlierCount} earlier {earlierCount === 1 ? "run" : "runs"} retained
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

@@ -37,13 +37,15 @@ from app.repositories import incident_repository, trace_repository, evidence_rep
 DEFAULT_TIME_WINDOW_SECONDS = 30
 
 
-def correlate_incident_evidence(
-    db: Session, incident_id: UUID, time_window_seconds: int = DEFAULT_TIME_WINDOW_SECONDS
-) -> Optional[Incident]:
+def expand_from_seed(
+    db: Session,
+    incident: Incident,
+    seed_evidence: list,
+    time_window_seconds: int = DEFAULT_TIME_WINDOW_SECONDS,
+) -> None:
     """
-    Expands an incident's evidence outward from whatever's already
-    manually linked (Day 6), using the traces those evidence rows
-    belong to as a starting point:
+    The correlation core. Expands outward from `seed_evidence`, using the
+    traces those evidence rows belong to as a starting point:
 
       - The seed traces themselves are included directly, which
         covers "pull in the rest of this trace's evidence" — no
@@ -54,20 +56,25 @@ def correlate_incident_evidence(
         multi-agent scenarios where the relevant evidence sits in
         a different trace entirely.
 
+    Flushes but deliberately does NOT commit: the caller owns the
+    transaction boundary, so this can also run as one step inside a
+    larger single-commit operation (see incident_service.create_incident).
+
+    Takes seed evidence as an explicit argument rather than reading
+    incident.evidence itself. When called immediately after a link in the
+    same uncommitted transaction, that relationship may be unloaded or
+    stale with respect to the rows just flushed; passing the rows in
+    sidesteps that entirely.
+
     Idempotent: already-linked evidence is skipped (see
     incident_repository.link_evidence), so calling this more than
     once is safe and won't duplicate or relabel existing manual links.
     """
-    incident = incident_repository.get_incident(db, incident_id)
-    if incident is None:
-        return None
-
-    seed_evidence = incident.evidence
     seed_trace_ids = {e.trace_id for e in seed_evidence}
 
     if not seed_trace_ids:
-        # Nothing manually linked yet — there's nothing to expand from.
-        return incident
+        # Nothing linked yet — there's nothing to expand from.
+        return
 
     seed_traces = trace_repository.get_traces_by_ids(db, seed_trace_ids)
 
@@ -81,7 +88,22 @@ def correlate_incident_evidence(
     candidate_evidence = evidence_repository.get_evidence_by_trace_ids(db, relevant_trace_ids)
     evidence_ids = [e.id for e in candidate_evidence]
 
-    incident_repository.link_evidence(db, incident_id, evidence_ids, linked_by="correlation")
+    incident_repository.link_evidence(db, incident.id, evidence_ids, linked_by="correlation")
+
+
+def correlate_incident_evidence(
+    db: Session, incident_id: UUID, time_window_seconds: int = DEFAULT_TIME_WINDOW_SECONDS
+) -> Optional[Incident]:
+    """
+    The standalone Correlate action (Day 7): expands an incident's
+    evidence outward from whatever's already linked to it, and commits.
+    See expand_from_seed above for what "expands" actually means.
+    """
+    incident = incident_repository.get_incident(db, incident_id)
+    if incident is None:
+        return None
+
+    expand_from_seed(db, incident, incident.evidence, time_window_seconds)
     db.commit()
     db.refresh(incident)
     return incident
