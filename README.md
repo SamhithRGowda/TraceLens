@@ -288,3 +288,42 @@ Resolve
 - No authentication or multi-tenant deployment layer
 - Remediation is advisory only and does not automatically execute changes against the underlying agent or system
 - Evaluation currently covers a small, curated scenario set rather than production-scale data
+
+---
+
+## Evaluation & Next Steps
+
+The current evaluation is intentionally small and uses a curated set of nine failure scenarios. The latest run achieved **4/9 (44.4%) accuracy**.
+
+This result is not treated as production-level classification accuracy. The evaluation exposed an important limitation in the current architecture: several failure modes have overlapping semantic definitions, so the same trace can contain evidence that resembles multiple categories.
+
+### What the Evaluation Taught Us
+
+The deterministic signal layer successfully handled objectively detectable patterns such as:
+
+- Context truncation / context overflow
+- Repeated identical tool calls indicating an infinite loop
+- Missing-context signals from failed retrieval followed by an unsupported response
+
+The remaining classification errors were primarily semantic cases where the LLM had to distinguish between overlapping categories such as hallucination, tool misuse, missing context, and other.
+
+### What I Would Improve Next
+
+The next iteration would focus on making the investigation pipeline more deterministic where the evidence allows it, rather than simply relying on a larger language model.
+
+1. **Expand deterministic signal coverage**  
+   Add more reliable structural detectors for failure modes that can be identified directly from execution traces.
+
+2. **Refine the failure taxonomy**  
+   Make category boundaries more mutually exclusive where possible, reducing ambiguity between overlapping failure modes.
+
+3. **Improve evaluation coverage**  
+   Expand the curated dataset beyond the current nine scenarios and include multiple examples per failure category.
+
+4. **Measure per-category performance**  
+   Track precision, recall, and a confusion matrix instead of relying only on overall accuracy. This would show exactly which categories are being confused.
+
+5. **Use stronger models selectively**  
+   Evaluate a stronger LLM only after improving the architecture and taxonomy. The goal is to use the LLM for genuinely semantic decisions while handling objectively detectable failures deterministically.
+
+The objective is therefore not simply to increase the model's score, but to make the overall investigation pipeline **more reliable, explainable, and measurable**.
